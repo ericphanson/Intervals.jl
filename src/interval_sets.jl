@@ -531,46 +531,49 @@ function find_intersections(
     # * identify the set of intervals in `y` that start during-or-after `I`
     # * identify the set of intervals in `y` that stop before-or-during `I`
     # * intersect them
-    starts = first.(y)
-    starts_perm = sortperm(starts)
-    starts_sorted = starts[starts_perm]
+
+    y_starts = first.(y)
+    y_starts_perm = sortperm(y_starts)
+    y_starts_sorted = y_starts[y_starts_perm]
 
     # Sneaky performance optimization (makes a huge difference!)
-    # Rather than sorting `stops` relative to `y`, we sort it relative to `starts`.
-    # This allows us to work in the `starts` frame of reference until the very end.
-    # In particular, when we intersect the sets of intervals obtained from starts and from stops,
-    # the `starts` set can be kept as a `UnitRange`, making the intersection *much* faster.
-    stops = last.(y[starts_perm])
-    stops_perm = sortperm(stops)
-    stops_sorted = stops[stops_perm]
-    len = length(stops_sorted)
+    # Rather than sorting `stops` relative to `y`, we sort it relative to `y_starts`.
+    # This allows us to work in the `y_starts` frame of reference until the very end.
+    # In particular, when we intersect the sets of intervals obtained from y_starts and from stops,
+    # the `y_starts` set can be kept as a `UnitRange`, making the intersection *much* faster.
+    y_stops = last.(y[y_starts_perm])
+    y_stops_perm = sortperm(y_stops)
+    y_stops_sorted = y_stops[y_stops_perm]
+    len = length(y_stops_sorted)
+
+    
 
     results = Vector{Vector{Int}}(undef, length(x))
     for (i, I) in enumerate(x)
-        # find all the starts which occur before the end of `I`
-        idx_first = searchsortedlast(starts_sorted, last(I))
+        # find all the y_starts which occur before the end of `I`
+        idx_first = searchsortedlast(y_starts_sorted, last(I))
         if idx_first < 1
             results[i] = Int[]
             continue
         end
 
-        # find all the stops which occur after the start of `I`
-        idx_last = searchsortedfirst(stops_sorted, first(I))
+        # find all the y_stops which occur after the start of `I`
+        idx_last = searchsortedfirst(y_stops_sorted, first(I))
 
         if idx_last > len
             results[i] = Int[]
             continue
         end
 
-        # Working in "starts" frame of reference
-        starts_before_or_during = 1:idx_first
-        stops_during_or_after = @views stops_perm[idx_last:end]
+        # Working in "y_starts" frame of reference
+        y_starts_before_or_during = 1:idx_first
+        y_stops_during_or_after = @views y_stops_perm[idx_last:end]
 
         # Intersect them
-        r = intersect(starts_before_or_during, stops_during_or_after)
+        r = intersect(y_starts_before_or_during, y_stops_during_or_after)
 
         # *Now* go back to y's sorting order, post-intersection.
-        results[i] = starts_perm[r]
+        results[i] = y_starts_perm[r]
     end
     return results
 end
